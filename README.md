@@ -5,8 +5,10 @@ The [Overwing](https://overwing.ai/gate) send gate as an [OpenClaw](https://open
 It runs in **shadow mode** until you say otherwise: it checks, it logs, it changes nothing. `/overwing stats` shows what it would have stopped.
 
 ```bash
-openclaw plugins install overwing-openclaw
+openclaw plugins install overwing-openclaw --force && openclaw plugins enable overwing
 ```
+
+A plugin installed from npm lands disabled until you enable it, and `--force` acknowledges that npm is outside ClawHub's review. Check it with `openclaw plugins inspect overwing --runtime`: three typed hooks and the `overwing` command.
 
 ## Paying for checks
 
