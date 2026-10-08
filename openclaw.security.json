@@ -1,0 +1,44 @@
+{
+  "$schema": "https://openclaw.ai/schemas/plugin-security.json",
+  "version": "1.0",
+  "plugin": "overwing-openclaw",
+  "description": "Send gate for outbound messages. Reads message text to evaluate it, and can sign x402 micropayments with a wallet key.",
+  "expectedBehaviors": [
+    {
+      "type": "network-access",
+      "host": "overwing.ai",
+      "purpose": "evaluate outbound text",
+      "justification": "The text of an outbound message, reply or send-tool call is POSTed to https://overwing.ai/api/v1/evaluate (key or free allowance) or /api/x402/evaluate (wallet). Without a key the text is not stored by the service; with a key, storage follows the account's data settings.",
+      "dataFlow": "outbound-text-only",
+      "networkTransmission": true
+    },
+    {
+      "type": "env-access",
+      "variable": "OVERWING_API_KEY",
+      "purpose": "authenticate to the Overwing API",
+      "dataFlow": "sent-as-bearer-token",
+      "networkTransmission": true
+    },
+    {
+      "type": "env-access",
+      "variable": "OVERWING_WALLET_KEY",
+      "purpose": "x402 payment signing",
+      "justification": "Used locally to sign USDC payment authorizations on Base (EIP-712). The key never leaves the process; only signatures are sent. If unset, ClawRouter's wallet file at ~/.openclaw/blockrun/wallet.key is read for the same purpose.",
+      "dataFlow": "local-only",
+      "networkTransmission": false
+    }
+  ],
+  "securityNotes": [
+    "Shadow mode is the default: nothing is altered or cancelled until the operator sets mode to enforce.",
+    "A failed, slow or unpaid check never blocks a message: the plugin fails open and logs the reason.",
+    "Wallet spending is capped per call and per day; defaults $0.01 and $0.50.",
+    "Logs at ~/.openclaw/overwing/logs/ hold verdicts, rules and costs, never the message text.",
+    "Source is MIT licensed."
+  ],
+  "references": [
+    "https://overwing.ai/gate",
+    "https://overwing.ai/llms.txt",
+    "https://x402.org",
+    "https://github.com/frod27/overwing-openclaw"
+  ]
+}

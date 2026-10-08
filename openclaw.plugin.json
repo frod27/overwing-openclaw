@@ -1,0 +1,30 @@
+{
+  "id": "overwing",
+  "name": "Overwing gate",
+  "description": "Checks every outbound message, reply and send-tool call before it goes: personal data, confidential leaks, toxicity, self-harm, severity. One recommended action per message: allow, redact, review or block. Shadow mode by default. Pays per check with an API key, an x402 wallet (ClawRouter's works) or the free allowance.",
+  "categories": ["security"],
+  "activation": { "onStartup": true },
+  "enabledByDefault": true,
+  "skills": ["./skills"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "mode": { "type": "string", "enum": ["shadow", "enforce"], "description": "shadow: evaluate and log what would have happened. enforce: act on the verdict. Default shadow." },
+      "apiKey": { "type": "string", "description": "Overwing API key (ow_live_...). Optional: a free key lifts the 10-a-day allowance to 250 and keeps your checks on your dashboard. Takes precedence over the wallet." },
+      "walletKey": { "type": "string", "description": "EVM private key (0x...) to pay $0.002 per check in USDC on Base over x402. Optional. If ClawRouter has a wallet at ~/.openclaw/blockrun/wallet.key it is used automatically." },
+      "onReview": { "type": "string", "enum": ["allow", "hold"], "description": "What a review verdict does in enforce mode. allow: send and log. hold: cancel the send; for tool calls, ask the operator through OpenClaw's approval prompt. Default hold." },
+      "fallbackText": { "type": "string", "description": "Text sent in place of a message that was redacted or blocked. Default: a short note that the message was held back." },
+      "ruleSet": { "type": "string", "description": "Rule set slug. Default outbound-message. Custom sets need an API key." },
+      "tools": { "type": "array", "items": { "type": "string" }, "description": "Tool names treated as outbound sends and checked in before_tool_call. Default [\"message\"]." },
+      "maxPerCallUsd": { "type": "number", "description": "Wallet rail: refuse to pay more than this for one check. Default 0.01." },
+      "dailyCapUsd": { "type": "number", "description": "Wallet rail: stop paying after this much in a UTC day; checks fall back to the free allowance, then to shadow. Default 0.50." },
+      "timeoutMs": { "type": "number", "description": "Give up on a check after this long and let the message through. Default 2500." },
+      "baseUrl": { "type": "string", "description": "Override the API origin. Default https://overwing.ai." }
+    }
+  },
+  "uiHints": {
+    "apiKey": { "label": "Overwing API key", "sensitive": true, "placeholder": "ow_live_... (optional)" },
+    "walletKey": { "label": "Wallet private key", "sensitive": true, "placeholder": "0x... (optional; ClawRouter's wallet is reused)" },
+    "mode": { "label": "Mode" }
+  }
+}
