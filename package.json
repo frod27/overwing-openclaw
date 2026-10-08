@@ -1,6 +1,6 @@
 {
   "name": "overwing-openclaw",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "OpenClaw plugin: Overwing's send gate on every outbound message, reply and tool call. Shadow mode by default; pays per check with an API key, an x402 wallet (ClawRouter's works), or the free allowance.",
   "type": "module",
   "main": "dist/index.js",
@@ -16,7 +16,6 @@
     "!dist/**/*.map",
     "skills",
     "openclaw.plugin.json",
-    "openclaw.security.json",
     "docs/*.md"
   ],
   "openclaw": {

@@ -59,6 +59,17 @@ Logs live in `~/.openclaw/overwing/logs/`, one JSONL line per check, never the m
 | `timeoutMs` | `2500` | |
 | `baseUrl` | `https://overwing.ai` | |
 
+## Security
+
+What the plugin reads, sends and signs, stated plainly because OpenClaw has no versioned security-manifest schema yet:
+
+- **Network.** The text of an outbound message, reply or send-tool call is POSTed to `https://overwing.ai/api/v1/evaluate` (key or free allowance) or `/api/x402/evaluate` (wallet). Without a key the service does not store the text; with a key, storage follows your account's data settings.
+- **`OVERWING_API_KEY`** is sent as a bearer token to overwing.ai and nowhere else.
+- **`OVERWING_WALLET_KEY`**, or ClawRouter's wallet file at `~/.openclaw/blockrun/wallet.key`, is used locally to sign USDC payment authorizations on Base (EIP-712). The key never leaves the process; only signatures are sent. Spending is capped per call and per day.
+- **Shadow mode is the default.** Nothing is altered or cancelled until you set `mode` to `enforce`.
+- **Fail open.** A failed, slow or unpaid check never blocks a message; it is logged as skipped with the reason.
+- **Logs** at `~/.openclaw/overwing/logs/` hold verdicts, rules and costs, never message text.
+
 ## Develop
 
 ```bash
@@ -66,7 +77,7 @@ npm install
 npm test            # node:test on the pure modules
 npm run typecheck   # against the OpenClaw SDK at /opt/homebrew/lib/node_modules/openclaw
 npm run build       # tsup, one ESM file with dependencies inlined
-npm pack --pack-destination /tmp && openclaw plugins install npm-pack:/tmp/overwing-openclaw-0.1.1.tgz --force
+npm pack --pack-destination /tmp && openclaw plugins install npm-pack:/tmp/overwing-openclaw-0.1.2.tgz --force
 openclaw plugins inspect overwing --runtime --json
 ```
 
