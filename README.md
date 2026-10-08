@@ -64,7 +64,7 @@ npm install
 npm test            # node:test on the pure modules
 npm run typecheck   # against the OpenClaw SDK at /opt/homebrew/lib/node_modules/openclaw
 npm run build       # tsup, one ESM file with dependencies inlined
-npm pack --pack-destination /tmp && openclaw plugins install npm-pack:/tmp/overwing-openclaw-0.1.0.tgz --force
+npm pack --pack-destination /tmp && openclaw plugins install npm-pack:/tmp/overwing-openclaw-0.1.1.tgz --force
 openclaw plugins inspect overwing --runtime --json
 ```
 

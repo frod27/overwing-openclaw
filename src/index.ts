@@ -26,7 +26,7 @@ type Api = {
   registerCommand: (command: { name: string; description: string; acceptsArgs?: boolean; requireAuth?: boolean; handler: (ctx: { args?: string }) => Promise<{ text: string; isError?: boolean }> | { text: string; isError?: boolean } }) => void;
 };
 
-const VERSION = "0.1.0";
+const VERSION = "0.1.1";
 
 export default definePluginEntry({
   id: "overwing",

@@ -1,17 +1,37 @@
 {
   "name": "overwing-openclaw",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OpenClaw plugin: Overwing's send gate on every outbound message, reply and tool call. Shadow mode by default; pays per check with an API key, an x402 wallet (ClawRouter's works), or the free allowance.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
-    ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" }
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
   },
-  "files": ["dist", "!dist/**/*.map", "skills", "openclaw.plugin.json", "openclaw.security.json", "docs/*.md"],
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "skills",
+    "openclaw.plugin.json",
+    "openclaw.security.json",
+    "docs/*.md"
+  ],
   "openclaw": {
-    "extensions": ["./dist/index.js"],
-    "compat": { "pluginApiRange": ">=2026.3.24", "minGatewayVersion": "2026.5.2" }
+    "extensions": [
+      "./dist/index.js"
+    ],
+    "compat": {
+      "pluginApi": ">=2026.3.24",
+      "pluginApiRange": ">=2026.3.24",
+      "minGatewayVersion": "2026.5.2"
+    },
+    "build": {
+      "openclawVersion": "2026.9.6",
+      "pluginSdkVersion": "2026.9.6"
+    }
   },
   "scripts": {
     "build": "tsup",
@@ -19,13 +39,32 @@
     "test": "node --test \"src/**/*.test.ts\"",
     "pack:local": "npm run build && npm pack --pack-destination /tmp"
   },
-  "keywords": ["openclaw", "openclaw-plugin", "guardrails", "x402", "agents", "moderation", "pii"],
+  "keywords": [
+    "openclaw",
+    "openclaw-plugin",
+    "guardrails",
+    "x402",
+    "agents",
+    "moderation",
+    "pii"
+  ],
   "license": "MIT",
-  "repository": { "type": "git", "url": "https://github.com/frod27/overwing-openclaw" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frod27/overwing-openclaw.git"
+  },
   "homepage": "https://overwing.ai/gate",
-  "engines": { "node": ">=22" },
-  "peerDependencies": { "openclaw": ">=2026.3.24" },
-  "peerDependenciesMeta": { "openclaw": { "optional": true } },
+  "engines": {
+    "node": ">=22"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.3.24"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
+  },
   "dependencies": {
     "@x402/evm": "^2.9.0",
     "@x402/fetch": "^2.9.0",
