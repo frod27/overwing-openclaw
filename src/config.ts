@@ -5,6 +5,7 @@
  */
 
 export type Mode = "shadow" | "enforce";
+export type PreflightMode = "off" | "shadow" | "enforce";
 export type OnReview = "allow" | "hold";
 
 export type Config = {
@@ -19,6 +20,8 @@ export type Config = {
   dailyCapUsd: number;
   timeoutMs: number;
   baseUrl: string;
+  /** Preflight for x402: check every payment's terms and payee before the wallet signs. */
+  x402Preflight: PreflightMode;
 };
 
 export const DEFAULT_FALLBACK = "[This message was held back by the Overwing gate. A person will follow up.]";
@@ -35,6 +38,7 @@ export const DEFAULTS: Config = {
   dailyCapUsd: 0.5,
   timeoutMs: 2500,
   baseUrl: "https://overwing.ai",
+  x402Preflight: "shadow",
 };
 
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() !== "" ? v.trim() : null);
@@ -58,6 +62,7 @@ export function resolveConfig(raw: Record<string, unknown> | undefined, env: Rec
     dailyCapUsd: num(r.dailyCapUsd, DEFAULTS.dailyCapUsd),
     timeoutMs: Math.max(250, num(r.timeoutMs, DEFAULTS.timeoutMs)),
     baseUrl: (str(r.baseUrl) ?? DEFAULTS.baseUrl).replace(/\/+$/, ""),
+    x402Preflight: r.x402Preflight === "off" || r.x402Preflight === "enforce" ? r.x402Preflight : "shadow",
   };
 }
 

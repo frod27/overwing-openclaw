@@ -7,7 +7,7 @@ import type { Config } from "./config.ts";
 import { evaluateWithKeyOrFree, type CheckResult, type Context } from "./client.ts";
 import { actionOf, firedRules, type Action, type Evaluation } from "./decision.ts";
 import type { Hook, Rail, StatLine } from "./stats.ts";
-import type { SpendStore } from "./payment.ts";
+import type { PreflightSettings, SpendStore } from "./payment.ts";
 
 export type Checked = {
   action: Action | "skipped";
@@ -26,6 +26,8 @@ export type GateIo = {
   /** Wallet key found on disk (ClawRouter's), used when the config has none. */
   diskWalletKey?: () => string | null;
   walletEvaluate?: typeof import("./payment.ts").evaluateWithWallet;
+  /** Where Preflight decisions for the wallet rail are written. */
+  onPreflight?: PreflightSettings["onDecision"];
 };
 
 /** Which rail this install pays with, for status lines. */
@@ -50,7 +52,8 @@ export async function check(cfg: Config, io: GateIo, input: string, context: Con
   const walletKey = cfg.walletKey ?? io.diskWalletKey?.() ?? null;
   if (walletKey) {
     const evaluateWithWallet = io.walletEvaluate ?? (await import("./payment.ts")).evaluateWithWallet;
-    const paid = await evaluateWithWallet({ baseUrl: cfg.baseUrl, walletKey, ruleSet: cfg.ruleSet, input, context, timeoutMs: cfg.timeoutMs, caps: { maxPerCallUsd: cfg.maxPerCallUsd, dailyCapUsd: cfg.dailyCapUsd }, store: io.spendStore, now: io.now });
+    const preflight: PreflightSettings | null = cfg.x402Preflight === "off" ? null : { mode: cfg.x402Preflight, baseUrl: cfg.baseUrl, apiKey: cfg.apiKey, onReview: cfg.onReview, maxPerCallUsd: cfg.maxPerCallUsd, timeoutMs: cfg.timeoutMs, onDecision: io.onPreflight ?? (() => undefined) };
+    const paid = await evaluateWithWallet({ baseUrl: cfg.baseUrl, walletKey, ruleSet: cfg.ruleSet, input, context, timeoutMs: cfg.timeoutMs, caps: { maxPerCallUsd: cfg.maxPerCallUsd, dailyCapUsd: cfg.dailyCapUsd }, store: io.spendStore, now: io.now, preflight });
     if (paid.ok) return done(paid, "wallet");
     // Over the cap or unpaid: the free allowance is still there.
     const free = await evaluateWithKeyOrFree({ baseUrl: cfg.baseUrl, apiKey: null, ruleSet: cfg.ruleSet, input, context, timeoutMs: cfg.timeoutMs, fetchImpl: io.fetchImpl, signal });

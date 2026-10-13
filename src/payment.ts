@@ -17,6 +17,38 @@ type PayFetch = (url: string, init: RequestInit) => Promise<Response>;
 
 let cached: { key: string; payFetch: PayFetch } | null = null;
 
+/** What the hook needs to know about the request in flight; one payment at a time per process. */
+let inFlight: { url: string; preflight: PreflightSettings | null } = { url: "", preflight: null };
+
+export type PreflightSettings = {
+  mode: "shadow" | "enforce";
+  baseUrl: string;
+  apiKey: string | null;
+  onReview: "allow" | "hold";
+  maxPerCallUsd: number;
+  timeoutMs: number;
+  /** Receives the decision for the stats log. */
+  onDecision: (d: { decision: string; codes: string[]; amountUsd: number | null; payTo: string | null; ms: number; skipped?: string }) => void;
+};
+
+/** Ask Overwing whether this payment's terms and payee look like what they claim. Fails open: a check that cannot be made never blocks a payment. */
+export async function preflightPayment(paymentRequired: unknown, selected: unknown, url: string, s: PreflightSettings): Promise<{ decision: "allow" | "review" | "refuse"; codes: string[]; amountUsd: number | null; payTo: string | null } | { skipped: string }> {
+  const req = selected as Requirements & { payTo?: string };
+  const terms = typeof paymentRequired === "object" && paymentRequired !== null ? paymentRequired : { x402Version: 2, resource: { url }, accepts: [req] };
+  const headers: Record<string, string> = { "Content-Type": "application/json", "User-Agent": "overwing-openclaw/0.2" };
+  if (s.apiKey) headers.Authorization = `Bearer ${s.apiKey}`;
+  try {
+    const res = await fetch(`${s.baseUrl}/api/v1/preflight/x402`, { method: "POST", headers, body: JSON.stringify({ payment_required: terms, requested_url: url, network: req.network, policy: { max_per_call_usd: s.maxPerCallUsd } }), signal: AbortSignal.timeout(s.timeoutMs) });
+    if (!res.ok) return { skipped: `preflight answered ${res.status}` };
+    const b = (await res.json()) as { decision?: string; reasons?: { code?: string }[]; terms?: { amount_usd?: number | null; pay_to?: string } };
+    const decision = b.decision === "allow" || b.decision === "review" || b.decision === "refuse" ? b.decision : null;
+    if (!decision) return { skipped: "preflight gave no decision" };
+    return { decision, codes: (b.reasons ?? []).map((r) => String(r.code)), amountUsd: b.terms?.amount_usd ?? null, payTo: b.terms?.pay_to ?? null };
+  } catch (err: unknown) {
+    return { skipped: `preflight unreachable: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
 async function payFetchFor(walletKey: string, caps: { maxPerCallUsd: number; dailyCapUsd: number }, store: SpendStore, now: () => number): Promise<PayFetch> {
   if (cached && cached.key === walletKey) return cached.payFetch;
   const [{ wrapFetchWithPayment, x402Client }, { registerExactEvmScheme }, { toClientEvmSigner }, { createPublicClient, http }, { base }, { privateKeyToAccount }] = await Promise.all([
@@ -32,8 +64,19 @@ async function payFetchFor(walletKey: string, caps: { maxPerCallUsd: number; dai
   const client = new x402Client();
   // ClawRouter's pattern: the caps are checked in the client's own hook, so no scheme can pay around them.
   const pending = new WeakMap<object, number>();
-  client.onBeforePaymentCreation(async (ctx: { selectedRequirements: unknown }) => {
+  client.onBeforePaymentCreation(async (ctx: { selectedRequirements: unknown; paymentRequired?: unknown }) => {
     const req = ctx.selectedRequirements as Requirements;
+    // Preflight for x402: the terms and the payee, before the spend caps and before any signature.
+    const pf = inFlight.preflight;
+    if (pf) {
+      const started = Date.now();
+      const r = await preflightPayment(ctx.paymentRequired ?? null, ctx.selectedRequirements, inFlight.url, pf);
+      if ("skipped" in r) pf.onDecision({ decision: "skipped", codes: [], amountUsd: null, payTo: null, ms: Date.now() - started, skipped: r.skipped });
+      else {
+        pf.onDecision({ ...r, ms: Date.now() - started });
+        if (pf.mode === "enforce" && (r.decision === "refuse" || (r.decision === "review" && pf.onReview === "hold"))) throw new Error(`preflight: ${r.decision} (${r.codes.join(", ")})`);
+      }
+    }
     const price = usdFromAtomic(req.amount ?? req.maxAmountRequired ?? Number.NaN, req.extra?.decimals ?? 6);
     const state = forToday(store.load(), now());
     const check = allows(state, price, caps);
@@ -63,8 +106,10 @@ export async function evaluateWithWallet(opts: {
   caps: { maxPerCallUsd: number; dailyCapUsd: number };
   store: SpendStore;
   now?: () => number;
+  preflight?: PreflightSettings | null;
 }): Promise<CheckResult & { costUsd?: number }> {
   const now = opts.now ?? Date.now;
+  inFlight = { url: `${opts.baseUrl}/api/x402/evaluate`, preflight: opts.preflight ?? null };
   const before = forToday(opts.store.load(), now()).spentUsd;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs);
@@ -84,7 +129,7 @@ export async function evaluateWithWallet(opts: {
     return { ok: true, evaluation: json, status: res.status, costUsd: Math.max(0, Math.round((after - before) * 1e6) / 1e6) };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    return { ok: false, reason: controller.signal.aborted ? `timed out after ${opts.timeoutMs} ms` : msg.includes("spend policy") ? msg : `wallet payment failed: ${msg}` };
+    return { ok: false, reason: controller.signal.aborted ? `timed out after ${opts.timeoutMs} ms` : msg.includes("spend policy") || msg.includes("preflight:") ? msg : `wallet payment failed: ${msg}` };
   } finally {
     clearTimeout(timer);
   }

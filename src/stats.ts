@@ -4,7 +4,7 @@
  */
 
 export type Rail = "key" | "wallet" | "free";
-export type Hook = "message" | "reply" | "tool";
+export type Hook = "message" | "reply" | "tool" | "payment";
 
 export type StatLine = {
   at: string;

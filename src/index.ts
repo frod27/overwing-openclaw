@@ -26,7 +26,7 @@ type Api = {
   registerCommand: (command: { name: string; description: string; acceptsArgs?: boolean; requireAuth?: boolean; handler: (ctx: { args?: string }) => Promise<{ text: string; isError?: boolean }> | { text: string; isError?: boolean } }) => void;
 };
 
-const VERSION = "0.1.2";
+const VERSION = "0.2.0";
 
 export default definePluginEntry({
   id: "overwing",
@@ -35,9 +35,14 @@ export default definePluginEntry({
   register(apiRaw: unknown) {
     const api = apiRaw as Api;
     let cfg: Config = resolveConfig(api.pluginConfig, process.env);
-    const io: GateIo = { spendStore, diskWalletKey: clawRouterWalletKey };
+    const io: GateIo = {
+      spendStore,
+      diskWalletKey: clawRouterWalletKey,
+      // Every wallet payment's Preflight decision goes in the same log as the checks.
+      onPreflight: (d) => appendStat({ at: new Date().toISOString(), hook: "payment", mode: cfg.x402Preflight === "enforce" ? "enforce" : "shadow", rail: "wallet", action: d.decision, rules: d.codes.join(", ") || (d.skipped ?? ""), did: d.skipped ? "skipped" : cfg.x402Preflight === "enforce" && (d.decision === "refuse" || (d.decision === "review" && cfg.onReview === "hold")) ? "refuse" : cfg.x402Preflight === "enforce" ? "pass" : "log", costUsd: 0, ms: d.ms, ...(d.skipped ? { reason: d.skipped } : {}) }),
+    };
     const log = api.logger;
-    log.info(`[overwing] gate ${VERSION}: mode ${cfg.mode}, rail ${railOf(cfg, io)}, tools ${cfg.tools.join(", ")}`);
+    log.info(`[overwing] gate ${VERSION}: mode ${cfg.mode}, rail ${railOf(cfg, io)}, tools ${cfg.tools.join(", ")}, x402 preflight ${cfg.x402Preflight}`);
 
     // 1. Channel messages the agent sends (message tool deliveries, agent-to-agent sends).
     api.on("message_sending", async (event: { to: string; content: string }, ctx: { channelId?: string }) => {

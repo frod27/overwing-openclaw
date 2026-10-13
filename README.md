@@ -20,6 +20,12 @@ Three rails, used in this order:
 
 A check that fails, times out (2.5 s) or cannot be paid never blocks a message. It is logged as skipped with the reason.
 
+## Preflight for x402
+
+Before the wallet signs any payment, the plugin asks Overwing whether the 402's terms and payee look like what they claim: the network and the canonical USDC contract, the amount against your cap, the resource the 402 names against the one requested, the payee against x402-list's directory (verified delivery, recorded settlements, buyers, shared payout addresses) and the server's own `/.well-known/x402` manifest, and the price against what is recorded for that endpoint. The answer is allow, review or refuse with reasons.
+
+`x402Preflight` is `shadow` by default: the decision is logged with the other checks and nothing is stopped. Set it to `enforce` to refuse on refuse and hold on review (`onReview`), or `off`. A check that cannot be made never blocks a payment. Overwing's own routes pass the check; it is for every other x402 service the wallet is asked to pay.
+
 ## Enforce mode
 
 ```json
@@ -58,6 +64,7 @@ Logs live in `~/.openclaw/overwing/logs/`, one JSONL line per check, never the m
 | `dailyCapUsd` | `0.50` | wallet rail |
 | `timeoutMs` | `2500` | |
 | `baseUrl` | `https://overwing.ai` | |
+| `x402Preflight` | `shadow` | `off`, `shadow` or `enforce` |
 
 ## Security
 
@@ -77,7 +84,7 @@ npm install
 npm test            # node:test on the pure modules
 npm run typecheck   # against the OpenClaw SDK at /opt/homebrew/lib/node_modules/openclaw
 npm run build       # tsup, one ESM file with dependencies inlined
-npm pack --pack-destination /tmp && openclaw plugins install npm-pack:/tmp/overwing-openclaw-0.1.2.tgz --force
+npm pack --pack-destination /tmp && openclaw plugins install npm-pack:/tmp/overwing-openclaw-0.2.0.tgz --force
 openclaw plugins inspect overwing --runtime --json
 ```
 
